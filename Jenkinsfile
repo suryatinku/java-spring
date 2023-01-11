@@ -1,41 +1,54 @@
 pipeline {
-    agent any
+environment {
+AWS_ACCOUNT_ID="098324025508"
+AWS_DEFAULT_REGION="ap-south-1"
+IMAGE_REPO_NAME="javademo"
+IMAGE_TAG="${BUILD_NUMBER}"
+REPOSITORY_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}"
+}
+  agent any
+  stages {
+    stage('Build') {
+      steps{
+        script {
+          sh 'mvn clean install' 
+        }
+      }
+    }
+      
+    stage('build image') {
+      steps{
+        script {
+          dockerImage = docker.build "${IMAGE_REPO_NAME}:${IMAGE_TAG}"
+        }
+      }
+    }
+     stage('login into ecr') {
+      steps{
+        script {
+           sh "aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+          }
+        }
+      }
+ 
+stage('Push Image') {
+      steps{
+         script {
+             sh "docker tag ${IMAGE_REPO_NAME}:${IMAGE_TAG} ${REPOSITORY_URI}:${IMAGE_TAG}"
+             sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}:${IMAGE_TAG}"
 
-    environment {
-        registry = "211223789150.dkr.ecr.us-east-2.amazonaws.com/my-python-repo"
-    }
+          }
+        }
+      }    
     
-    stages {
-        stage('Checkout') {
-            steps {
-                checkout([$class: 'GitSCM', branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/akannan1087/myPythonDockerRepo']]])
-            }
-        }
-    
-        stage ("Build image") {
-            steps {
-                script {
-                    docker.build registry
-                }
-            }
-        }
-        
-        stage ("docker push") {
-         steps {
-             script {
-                sh "aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 211223789150.dkr.ecr.us-east-2.amazonaws.com"
-                sh "docker push 211223789150.dkr.ecr.us-east-2.amazonaws.com/my-python-repo"
-                 
-             }
-           }   
-        }
-        
-        stage ("Kube Deploy") {
-            steps {
-                withKubeConfig(caCertificate: '', clusterName: '', contextName: '', credentialsId: 'K8S', namespace: '', serverUrl: '') {
-                 sh "kubectl apply -f eks-deploy-from-ecr.yaml"
-                }
-            }
-        }
+    stage('Deploy to EKS'){
+      steps{
+          script {
+            sh 'aws eks update-kubeconfig --region ap-south-1 --name demo'
+            sh 'kubectl apply -f eks-deploy-k8s.yaml'
+      }
     }
+  }
+    
+  }
 }
