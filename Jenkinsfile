@@ -11,7 +11,7 @@ REPOSITORY_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/
     stage('Build') {
       steps{
         script {
-          sh 'mvn clean install' 
+          sh 'mvn package spring-boot:repackage' 
         }
       }
     }
