@@ -8,6 +8,12 @@ REPOSITORY_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/
 }
   agent any
   stages {
+    
+    stage('git clone'){
+      steps{
+        script{
+          git branch: 'main', credentialsId: 'git', url: 'https://github.com/suryatinku/java-spring.git'}}}
+    
     stage('Build') {
       steps{
         script {
